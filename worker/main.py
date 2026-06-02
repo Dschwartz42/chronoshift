@@ -53,55 +53,89 @@ def sanitize_prompt(prompt: str) -> str:
 
 
 async def generate_image(scene: dict, tmpdir: str) -> str:
-    """Generate one scene image via Replicate FLUX, with NSFW retry."""
+    """Generate one scene image via Replicate REST API with explicit timeouts."""
     prompts_to_try = [
         IMAGE_STYLE_PREFIX + scene["image_prompt"],
         IMAGE_STYLE_PREFIX + sanitize_prompt(scene["image_prompt"]),
         f"Documentary style historical illustration, ancient map and compass, parchment texture, aged paper, sepia tones, cinematic lighting, scene {scene['id']}",
     ]
 
+    headers = {
+        "Authorization": f"Bearer {REPLICATE_TOKEN}",
+        "Content-Type": "application/json",
+        "Prefer": "wait",
+    }
+
     for prompt in prompts_to_try:
-        for attempt in range(4):  # up to 4 retries per prompt (handles 429s)
+        for attempt in range(4):
             try:
-                loop = asyncio.get_event_loop()
-                output = await loop.run_in_executor(
-                    None,
-                    partial(
-                        replicate.run,
-                        "black-forest-labs/flux-1.1-pro",
-                        input={
-                            "prompt": prompt,
-                            "aspect_ratio": "16:9",
-                            "output_format": "png",
-                            "output_quality": 95,
-                            "safety_tolerance": 5,
+                async with httpx.AsyncClient(timeout=120) as client:
+                    # Submit prediction
+                    resp = await client.post(
+                        "https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions",
+                        headers=headers,
+                        json={
+                            "input": {
+                                "prompt": prompt,
+                                "aspect_ratio": "16:9",
+                                "output_format": "png",
+                                "output_quality": 95,
+                                "safety_tolerance": 5,
+                            }
                         },
-                    ),
-                )
-                image_url = str(output)
-                async with httpx.AsyncClient(timeout=60) as client:
-                    resp = await client.get(image_url)
+                    )
+
+                    if resp.status_code == 429:
+                        wait = 15 * (attempt + 1)
+                        print(f"Rate limited, waiting {wait}s...")
+                        await asyncio.sleep(wait)
+                        continue
+
                     resp.raise_for_status()
+                    prediction = resp.json()
+
+                    # Poll until done (max 90s)
+                    prediction_id = prediction["id"]
+                    for _ in range(30):
+                        if prediction.get("status") in ("succeeded", "failed", "canceled"):
+                            break
+                        await asyncio.sleep(3)
+                        poll = await client.get(
+                            f"https://api.replicate.com/v1/predictions/{prediction_id}",
+                            headers=headers,
+                        )
+                        prediction = poll.json()
+
+                    if prediction.get("status") != "succeeded":
+                        error = prediction.get("error", "unknown error")
+                        if "NSFW" in str(error):
+                            break
+                        raise RuntimeError(f"Prediction failed: {error}")
+
+                    image_url = prediction["output"]
+                    if isinstance(image_url, list):
+                        image_url = image_url[0]
+
+                    img_resp = await client.get(str(image_url), timeout=60)
+                    img_resp.raise_for_status()
+
                 path = f"{tmpdir}/scene_{scene['id']}.png"
                 with open(path, "wb") as f:
-                    f.write(resp.content)
+                    f.write(img_resp.content)
+                print(f"Scene {scene['id']} image done.")
                 return path
-            except Exception as e:
-                err = str(e)
-                if "429" in err or "throttled" in err.lower() or "rate limit" in err.lower():
-                    wait = 15 * (attempt + 1)
-                    print(f"Rate limited, waiting {wait}s before retry...")
-                    await asyncio.sleep(wait)
+
+            except httpx.TimeoutException:
+                print(f"Timeout on scene {scene['id']}, attempt {attempt + 1}, retrying...")
+                await asyncio.sleep(10)
+                continue
+            except RuntimeError as e:
+                if "NSFW" in str(e):
+                    break
+                if attempt < 3:
+                    await asyncio.sleep(10)
                     continue
-                elif "NSFW" in err:
-                    break  # try next prompt
-                elif "Cannot connect" in err or "connection" in err.lower() or "timeout" in err.lower() or "network" in err.lower():
-                    wait = 10 * (attempt + 1)
-                    print(f"Network error, waiting {wait}s before retry...")
-                    await asyncio.sleep(wait)
-                    continue
-                else:
-                    raise
+                raise
 
     raise RuntimeError(f"Failed to generate image for scene {scene['id']} after all retries")
 
