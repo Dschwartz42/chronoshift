@@ -287,15 +287,23 @@ async def process_job(job_id: str):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         try:
-            # Step 2: Generate images in parallel
+            # Step 2: Generate images sequentially to avoid rate limits
             update_status(job_id, "images", f"Generating {len(scenes)} scene illustrations...")
-            image_tasks = [generate_image(scene, tmpdir) for scene in scenes]
-            image_paths = await asyncio.gather(*image_tasks)
+            image_paths = []
+            for i, scene in enumerate(scenes):
+                update_status(job_id, "images", f"Generating illustration {i + 1} of {len(scenes)}...")
+                path = await generate_image(scene, tmpdir)
+                image_paths.append(path)
+                if i < len(scenes) - 1:
+                    await asyncio.sleep(12)  # stay within 6/min rate limit
 
-            # Step 3: Generate audio in parallel
+            # Step 3: Generate audio sequentially
             update_status(job_id, "audio", f"Generating narration for {len(scenes)} scenes...")
-            audio_tasks = [generate_audio(scene, tmpdir) for scene in scenes]
-            audio_paths = await asyncio.gather(*audio_tasks)
+            audio_paths = []
+            for i, scene in enumerate(scenes):
+                update_status(job_id, "audio", f"Generating narration {i + 1} of {len(scenes)}...")
+                path = await generate_audio(scene, tmpdir)
+                audio_paths.append(path)
 
             # Step 4: Build scene videos sequentially (ffmpeg)
             update_status(job_id, "assembling", "Assembling scenes with Ken Burns effects...")
