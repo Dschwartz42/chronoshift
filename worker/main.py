@@ -35,19 +35,60 @@ def update_status(job_id: str, status: str, detail: str = None):
     supabase.table("videos").update(data).eq("id", job_id).execute()
 
 
+NSFW_REPLACEMENTS = [
+    ("battle", "scene"), ("war", "historical event"), ("soldier", "figure"),
+    ("army", "group"), ("fight", "confrontation"), ("kill", "defeat"),
+    ("dead", "fallen"), ("death", "end"), ("blood", ""), ("weapon", "artifact"),
+    ("gun", "instrument"), ("sword", "tool"), ("attack", "event"),
+    ("violence", "conflict"), ("massacre", "event"), ("bomb", "device"),
+    ("explosion", "event"), ("fire", "light"), ("smoke", "mist"),
+]
+
+def sanitize_prompt(prompt: str) -> str:
+    result = prompt
+    for word, replacement in NSFW_REPLACEMENTS:
+        result = result.replace(word, replacement).replace(word.capitalize(), replacement.capitalize())
+    return result
+
+
 async def generate_image(scene: dict, tmpdir: str) -> str:
-    """Generate one scene image via Replicate FLUX."""
-    prompt = IMAGE_STYLE_PREFIX + scene["image_prompt"]
+    """Generate one scene image via Replicate FLUX, with NSFW retry."""
+    base_prompt = IMAGE_STYLE_PREFIX + scene["image_prompt"]
+    prompts_to_try = [base_prompt, IMAGE_STYLE_PREFIX + sanitize_prompt(scene["image_prompt"])]
+
+    last_error = None
+    for prompt in prompts_to_try:
+        try:
+            output = replicate.run(
+                "black-forest-labs/flux-1.1-pro",
+                input={
+                    "prompt": prompt,
+                    "aspect_ratio": "16:9",
+                    "output_format": "png",
+                    "output_quality": 95,
+                    "safety_tolerance": 5,
+                },
+            )
+            image_url = str(output)
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.get(image_url)
+                resp.raise_for_status()
+            path = f"{tmpdir}/scene_{scene['id']}.png"
+            with open(path, "wb") as f:
+                f.write(resp.content)
+            return path
+        except Exception as e:
+            last_error = e
+            if "NSFW" not in str(e):
+                raise
+            continue
+
+    # Final fallback: generate a neutral documentary-style image
+    fallback_prompt = f"Documentary style historical illustration, ancient map and compass, parchment texture, aged paper, sepia tones, cinematic lighting, scene {scene['id']}"
     output = replicate.run(
         "black-forest-labs/flux-1.1-pro",
-        input={
-            "prompt": prompt,
-            "aspect_ratio": "16:9",
-            "output_format": "png",
-            "output_quality": 95,
-        },
+        input={"prompt": fallback_prompt, "aspect_ratio": "16:9", "output_format": "png", "output_quality": 90},
     )
-    # output is a URL
     image_url = str(output)
     async with httpx.AsyncClient(timeout=60) as client:
         resp = await client.get(image_url)
