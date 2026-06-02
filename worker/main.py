@@ -117,7 +117,7 @@ async def generate_audio(scene: dict, tmpdir: str) -> str:
             },
             json={
                 "text": scene["narration"],
-                "model_id": "eleven_monolingual_v1",
+                "model_id": "eleven_multilingual_v2",
                 "voice_settings": {"stability": 0.75, "similarity_boost": 0.85},
             },
         )
