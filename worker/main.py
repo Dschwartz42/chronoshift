@@ -92,6 +92,11 @@ async def generate_image(scene: dict, tmpdir: str) -> str:
                     continue
                 elif "NSFW" in err:
                     break  # try next prompt
+                elif "Cannot connect" in err or "connection" in err.lower() or "timeout" in err.lower() or "network" in err.lower():
+                    wait = 10 * (attempt + 1)
+                    print(f"Network error, waiting {wait}s before retry...")
+                    await asyncio.sleep(wait)
+                    continue
                 else:
                     raise
 
