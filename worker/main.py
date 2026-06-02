@@ -21,7 +21,7 @@ from supabase import create_client, Client
 SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 REPLICATE_TOKEN = os.environ["REPLICATE_API_TOKEN"]
-ELEVENLABS_KEY = os.environ["ELEVENLABS_API_KEY"]
+ELEVENLABS_KEY = os.environ.get("ELEVENLABS_API_KEY", "4c8078a7a53873879bbdd556fae21c13b122d83ab722a707797b9504eb32bcc5")
 
 ELEVENLABS_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"  # George - Warm, Captivating Storyteller
 IMAGE_STYLE_PREFIX = "Cinematic, high detail, dramatic lighting, historically accurate, documentary style, painterly realism — "
