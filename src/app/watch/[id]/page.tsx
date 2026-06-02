@@ -1,7 +1,5 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Share2, ChevronRight, Play } from "lucide-react";
-import VideoCard from "@/components/VideoCard";
+import { ChevronRight, Play } from "lucide-react";
 import { EXAMPLE_VIDEOS, formatDuration } from "@/lib/mock-data";
 import ShareButton from "./ShareButton";
 

@@ -18,6 +18,7 @@ export default function VideoCard({ id, title, thumbnail, duration, small = fals
         {/* Thumbnail */}
         <div className={`relative ${small ? "aspect-[4/3]" : "aspect-video"} bg-[#E8E4DC] overflow-hidden`}>
           {thumbnail ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={thumbnail}
               alt={title}
