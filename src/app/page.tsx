@@ -53,9 +53,6 @@ export default function LandingPage() {
           <div className="w-full">
             <CyclingInput />
           </div>
-          <p className="mt-8 text-xs font-sans text-charcoal-muted">
-            8 pre-generated timelines ready to watch &mdash; or create your own
-          </p>
         </div>
 
         {/* Scroll hint */}
@@ -84,13 +81,12 @@ export default function LandingPage() {
           </p>
         </div>
         <div
-          className="scroll-snap-x flex gap-4 overflow-x-auto pb-6 px-6 md:px-12"
-          style={{ scrollbarWidth: "thin" }}
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 px-6 md:px-12"
           role="list"
           aria-label="Example alternate history videos"
         >
           {EXAMPLE_VIDEOS.map((video) => (
-            <div key={video.id} className="scroll-snap-item flex-shrink-0" role="listitem">
+            <div key={video.id} role="listitem">
               <VideoCard
                 id={video.id!}
                 title={video.prompt!}
@@ -99,7 +95,6 @@ export default function LandingPage() {
               />
             </div>
           ))}
-          <div className="flex-shrink-0 w-6 md:w-12" />
         </div>
       </section>
 

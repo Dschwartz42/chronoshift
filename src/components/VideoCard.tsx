@@ -14,7 +14,7 @@ interface VideoCardProps {
 export default function VideoCard({ id, title, thumbnail, duration, small = false }: VideoCardProps) {
   return (
     <Link href={`/watch/${id}`} className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-red rounded-lg">
-      <div className={`video-card rounded-lg overflow-hidden bg-[#F0EDE8] border border-border-light ${small ? "w-56" : "w-72 md:w-80"}`}>
+      <div className={`video-card rounded-lg overflow-hidden bg-[#F0EDE8] border border-border-light ${small ? "w-56" : "w-full"}`}>
         {/* Thumbnail */}
         <div className={`relative ${small ? "aspect-[4/3]" : "aspect-video"} bg-[#E8E4DC] overflow-hidden`}>
           {thumbnail ? (
