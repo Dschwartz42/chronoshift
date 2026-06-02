@@ -22,7 +22,7 @@ SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 REPLICATE_TOKEN = os.environ["REPLICATE_API_TOKEN"]
 ELEVENLABS_KEY = os.environ["ELEVENLABS_API_KEY"]
 
-ELEVENLABS_VOICE_ID = "pNInz6obpgDQGcFmaJgB"  # Adam - documentary tone
+ELEVENLABS_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"  # George - Warm, Captivating Storyteller
 IMAGE_STYLE_PREFIX = "Cinematic, high detail, dramatic lighting, historically accurate, documentary style, painterly realism — "
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
