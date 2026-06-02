@@ -2,26 +2,165 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap');
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --font-playfair: 'Playfair Display', Georgia, serif;
+  --font-inter: 'Inter', system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter);
+  color: #1A1A1A;
+  background: #FAFAF8;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* Paper grain overlay */
+.grain-overlay {
+  position: relative;
+}
+.grain-overlay::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 300px 300px;
+  z-index: 9999;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F0EDE8;
+}
+::-webkit-scrollbar-thumb {
+  background: #C4BDB4;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8B1A1A;
+}
+
+/* Horizontal scroll snap */
+.scroll-snap-x {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-snap-item {
+  scroll-snap-align: start;
+}
+
+/* Video card hover */
+.video-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.video-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(26, 26, 26, 0.12);
+}
+.video-card:hover .watch-btn {
+  opacity: 1;
+  transform: translateY(0);
+}
+.watch-btn {
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Progress stage animations */
+.stage-complete {
+  animation: fade-in 0.3s ease-out forwards;
+}
+.stage-active {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* Cycling placeholder */
+.placeholder-cycle {
+  position: relative;
+}
+.placeholder-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 1.25rem;
+  pointer-events: none;
+  color: #9A9490;
+  transition: opacity 0.5s ease;
+  font-style: italic;
+}
+.placeholder-text.hidden {
+  opacity: 0;
+}
+.placeholder-text.visible {
+  opacity: 1;
+}
+
+/* Dark watch page */
+.watch-page {
+  background: #0F0E0D;
+  color: #F5F0EA;
+}
+
+/* Map background animation */
+.hero-bg {
+  overflow: hidden;
+  position: absolute;
+  inset: 0;
+}
+.hero-bg-inner {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.06;
+  animation: map-drift 20s ease-in-out infinite;
+  filter: sepia(100%) contrast(1.2);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-8px); }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes map-drift {
+  0% { transform: translate(0, 0) scale(1.05); }
+  33% { transform: translate(-8px, -4px) scale(1.08); }
+  66% { transform: translate(4px, -6px) scale(1.06); }
+  100% { transform: translate(0, 0) scale(1.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
