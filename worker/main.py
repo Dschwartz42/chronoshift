@@ -13,6 +13,7 @@ import tempfile
 import subprocess
 from pathlib import Path
 from typing import Optional
+from functools import partial
 
 import replicate
 from supabase import create_client, Client
@@ -53,9 +54,6 @@ def sanitize_prompt(prompt: str) -> str:
 
 async def generate_image(scene: dict, tmpdir: str) -> str:
     """Generate one scene image via Replicate FLUX, with NSFW retry."""
-    base_prompt = IMAGE_STYLE_PREFIX + scene["image_prompt"]
-    prompts_to_try = [base_prompt, IMAGE_STYLE_PREFIX + sanitize_prompt(scene["image_prompt"])]
-
     prompts_to_try = [
         IMAGE_STYLE_PREFIX + scene["image_prompt"],
         IMAGE_STYLE_PREFIX + sanitize_prompt(scene["image_prompt"]),
@@ -65,15 +63,20 @@ async def generate_image(scene: dict, tmpdir: str) -> str:
     for prompt in prompts_to_try:
         for attempt in range(4):  # up to 4 retries per prompt (handles 429s)
             try:
-                output = replicate.run(
-                    "black-forest-labs/flux-1.1-pro",
-                    input={
-                        "prompt": prompt,
-                        "aspect_ratio": "16:9",
-                        "output_format": "png",
-                        "output_quality": 95,
-                        "safety_tolerance": 5,
-                    },
+                loop = asyncio.get_event_loop()
+                output = await loop.run_in_executor(
+                    None,
+                    partial(
+                        replicate.run,
+                        "black-forest-labs/flux-1.1-pro",
+                        input={
+                            "prompt": prompt,
+                            "aspect_ratio": "16:9",
+                            "output_format": "png",
+                            "output_quality": 95,
+                            "safety_tolerance": 5,
+                        },
+                    ),
                 )
                 image_url = str(output)
                 async with httpx.AsyncClient(timeout=60) as client:
