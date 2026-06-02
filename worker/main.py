@@ -56,47 +56,46 @@ async def generate_image(scene: dict, tmpdir: str) -> str:
     base_prompt = IMAGE_STYLE_PREFIX + scene["image_prompt"]
     prompts_to_try = [base_prompt, IMAGE_STYLE_PREFIX + sanitize_prompt(scene["image_prompt"])]
 
-    last_error = None
-    for prompt in prompts_to_try:
-        try:
-            output = replicate.run(
-                "black-forest-labs/flux-1.1-pro",
-                input={
-                    "prompt": prompt,
-                    "aspect_ratio": "16:9",
-                    "output_format": "png",
-                    "output_quality": 95,
-                    "safety_tolerance": 5,
-                },
-            )
-            image_url = str(output)
-            async with httpx.AsyncClient(timeout=60) as client:
-                resp = await client.get(image_url)
-                resp.raise_for_status()
-            path = f"{tmpdir}/scene_{scene['id']}.png"
-            with open(path, "wb") as f:
-                f.write(resp.content)
-            return path
-        except Exception as e:
-            last_error = e
-            if "NSFW" not in str(e):
-                raise
-            continue
+    prompts_to_try = [
+        IMAGE_STYLE_PREFIX + scene["image_prompt"],
+        IMAGE_STYLE_PREFIX + sanitize_prompt(scene["image_prompt"]),
+        f"Documentary style historical illustration, ancient map and compass, parchment texture, aged paper, sepia tones, cinematic lighting, scene {scene['id']}",
+    ]
 
-    # Final fallback: generate a neutral documentary-style image
-    fallback_prompt = f"Documentary style historical illustration, ancient map and compass, parchment texture, aged paper, sepia tones, cinematic lighting, scene {scene['id']}"
-    output = replicate.run(
-        "black-forest-labs/flux-1.1-pro",
-        input={"prompt": fallback_prompt, "aspect_ratio": "16:9", "output_format": "png", "output_quality": 90},
-    )
-    image_url = str(output)
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.get(image_url)
-        resp.raise_for_status()
-    path = f"{tmpdir}/scene_{scene['id']}.png"
-    with open(path, "wb") as f:
-        f.write(resp.content)
-    return path
+    for prompt in prompts_to_try:
+        for attempt in range(4):  # up to 4 retries per prompt (handles 429s)
+            try:
+                output = replicate.run(
+                    "black-forest-labs/flux-1.1-pro",
+                    input={
+                        "prompt": prompt,
+                        "aspect_ratio": "16:9",
+                        "output_format": "png",
+                        "output_quality": 95,
+                        "safety_tolerance": 5,
+                    },
+                )
+                image_url = str(output)
+                async with httpx.AsyncClient(timeout=60) as client:
+                    resp = await client.get(image_url)
+                    resp.raise_for_status()
+                path = f"{tmpdir}/scene_{scene['id']}.png"
+                with open(path, "wb") as f:
+                    f.write(resp.content)
+                return path
+            except Exception as e:
+                err = str(e)
+                if "429" in err or "throttled" in err.lower() or "rate limit" in err.lower():
+                    wait = 15 * (attempt + 1)
+                    print(f"Rate limited, waiting {wait}s before retry...")
+                    await asyncio.sleep(wait)
+                    continue
+                elif "NSFW" in err:
+                    break  # try next prompt
+                else:
+                    raise
+
+    raise RuntimeError(f"Failed to generate image for scene {scene['id']} after all retries")
 
 
 async def generate_audio(scene: dict, tmpdir: str) -> str:
