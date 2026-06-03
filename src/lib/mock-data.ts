@@ -80,24 +80,6 @@ export const EXAMPLE_VIDEOS: Partial<VideoRecord>[] = [
     is_public: true,
     status: "complete",
   },
-  {
-    id: "china-americas",
-    prompt: "What if China discovered the Americas first?",
-    title: "The Zheng He Civilization: Two Worlds United",
-    duration_seconds: 171,
-    thumbnail_url: null,
-    is_public: true,
-    status: "complete",
-  },
-  {
-    id: "roman-empire",
-    prompt: "What if the Roman Empire never fell?",
-    title: "Roma Aeterna: Two Thousand Years of the Eternal City",
-    duration_seconds: 195,
-    thumbnail_url: null,
-    is_public: true,
-    status: "complete",
-  },
 ];
 
 export function formatDuration(seconds: number): string {
