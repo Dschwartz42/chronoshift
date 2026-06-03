@@ -174,24 +174,18 @@ def get_audio_duration(audio_path: str) -> float:
 
 
 def build_scene_video(scene: dict, image_path: str, audio_path: str, tmpdir: str) -> str:
-    """Assemble one scene: Ken Burns effect + title card + narration audio."""
+    """Assemble one scene: static image + title overlay + narration audio."""
     duration = get_audio_duration(audio_path)
     output_path = f"{tmpdir}/scene_{scene['id']}_out.mp4"
 
     title_escaped = scene["title"].replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
-    fps = 24
-    frames = int(duration * fps)
 
     cmd = [
         "ffmpeg", "-y",
         "-loop", "1", "-i", image_path,
         "-i", audio_path,
         "-filter_complex", (
-            f"[0:v]scale=1280:720:force_original_aspect_ratio=increase,"
-            f"crop=1280:720,"
-            f"zoompan=z='min(zoom+0.001,1.3)':d={frames}:fps={fps}:"
-            f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)',"
-            f"scale=1280:720,"
+            f"[0:v]scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
             f"drawtext=text='{title_escaped}'"
             f":fontsize=28:fontcolor=white:x=(w-text_w)/2:y=h-80"
             f":enable='between(t,0,3)':alpha='if(lt(t,0.5),t/0.5,if(gt(t,2.5),(3-t)/0.5,1))'[v]"
