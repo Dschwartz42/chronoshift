@@ -10,15 +10,22 @@ interface WatchPageProps {
 }
 
 async function getVideo(id: string) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+  // For real UUIDs, prefer Supabase so we get the full narrative_json
+  if (isUuid) {
+    try {
+      const sb = getServiceClient();
+      const { data } = await sb.from("videos").select("*").eq("id", id).single();
+      if (data) return data;
+    } catch {}
+  }
+
+  // Fall back to mock data (covers slugs and UUID entries not yet in Supabase)
   const mock = EXAMPLE_VIDEOS.find((v) => v.id === id);
   if (mock) return mock;
-  try {
-    const sb = getServiceClient();
-    const { data } = await sb.from("videos").select("*").eq("id", id).single();
-    return data ?? null;
-  } catch {
-    return null;
-  }
+
+  return null;
 }
 
 export default async function WatchPage({ params }: WatchPageProps) {
