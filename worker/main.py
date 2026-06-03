@@ -182,7 +182,7 @@ def build_scene_video(scene: dict, image_path: str, audio_path: str, tmpdir: str
     # At 1fps this is very fast to encode (one frame per second).
     cmd = [
         "ffmpeg", "-y",
-        "-loop", "1", "-i", image_path,
+        "-loop", "1", "-r", "25", "-i", image_path,
         "-i", audio_path,
         "-filter_complex",
         f"[0:v]scale=1472:720:force_original_aspect_ratio=increase,"
