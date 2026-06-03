@@ -148,12 +148,17 @@ export default async function WatchPage({ params }: WatchPageProps) {
                   <div className="video-card rounded-lg overflow-hidden bg-surface-dark-2 border border-border-dark w-64 group cursor-pointer">
                     <Link href={`/watch/${v.id}`}>
                       <div className="aspect-video bg-surface-dark-3 relative overflow-hidden">
-                        <div className="w-full h-full flex items-center justify-center">
-                          <svg viewBox="0 0 100 56" className="w-3/4 opacity-10" fill="none">
-                            <path d="M0 28 Q25 10 50 28 Q75 46 100 28" stroke="#C9A84C" strokeWidth="1.5" />
-                            <circle cx="50" cy="28" r="3" fill="#C9A84C" />
-                          </svg>
-                        </div>
+                        {v.thumbnail_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={v.thumbnail_url} alt={v.prompt ?? ""} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <svg viewBox="0 0 100 56" className="w-3/4 opacity-10" fill="none">
+                              <path d="M0 28 Q25 10 50 28 Q75 46 100 28" stroke="#C9A84C" strokeWidth="1.5" />
+                              <circle cx="50" cy="28" r="3" fill="#C9A84C" />
+                            </svg>
+                          </div>
+                        )}
                         <div className="watch-btn absolute inset-0 bg-black/40 flex items-center justify-center">
                           <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
                             <Play className="w-4 h-4 text-charcoal ml-0.5" fill="currentColor" />
