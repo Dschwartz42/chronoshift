@@ -12,6 +12,11 @@ from main import process_job
 app = FastAPI()
 API_KEY = os.environ.get("WORKER_API_KEY", "")
 
+@app.on_event("startup")
+async def startup():
+    from main import ELEVENLABS_KEY
+    print(f"[STARTUP] ELEVENLABS_KEY={ELEVENLABS_KEY[:8]}... len={len(ELEVENLABS_KEY)}", flush=True)
+
 
 class TriggerRequest(BaseModel):
     jobId: str
