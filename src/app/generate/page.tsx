@@ -4,8 +4,88 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import GenerationProgress, { STAGES, StageStatus } from "@/components/GenerationProgress";
-import { AlertCircle, Clock, Mail } from "lucide-react";
+import { AlertCircle, Clock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+
+// Fake substep sequences per stage
+const FAKE_DETAILS: Record<string, string[]> = {
+  narrative: [
+    "Analyzing historical context...",
+    "Researching the alternate timeline...",
+    "Writing the divergent history...",
+  ],
+  scenes: [
+    "Structuring 7 scenes...",
+    "Outlining narrative arc...",
+    "Finalizing scene breakdown...",
+  ],
+  images: [
+    "Generating illustration 1 of 7...",
+    "Generating illustration 2 of 7...",
+    "Generating illustration 3 of 7...",
+    "Generating illustration 4 of 7...",
+    "Generating illustration 5 of 7...",
+    "Generating illustration 6 of 7...",
+    "Generating illustration 7 of 7...",
+  ],
+  audio: [
+    "Generating narration 1 of 7...",
+    "Generating narration 2 of 7...",
+    "Generating narration 3 of 7...",
+    "Generating narration 4 of 7...",
+    "Generating narration 5 of 7...",
+    "Generating narration 6 of 7...",
+    "Generating narration 7 of 7...",
+  ],
+  video: [
+    "Rendering scene 1 of 7...",
+    "Rendering scene 2 of 7...",
+    "Rendering scene 3 of 7...",
+    "Rendering scene 4 of 7...",
+    "Rendering scene 5 of 7...",
+    "Rendering scene 6 of 7...",
+    "Rendering scene 7 of 7...",
+    "Stitching final video...",
+    "Finalizing your documentary...",
+  ],
+};
+
+// ms between fake substep cycles within each stage
+const DETAIL_INTERVALS: Record<string, number> = {
+  narrative: 3000,
+  scenes: 4000,
+  images: 15000,
+  audio: 8000,
+  video: 25000,
+};
+
+// ms before advancing to next stage (after stage becomes active)
+const STAGE_DURATIONS: Record<string, number> = {
+  narrative: 8000,
+  scenes: 12000,
+  images: 110000,
+  audio: 60000,
+  // video holds until real completion
+};
+
+function buildStatuses(activeStage: string, isComplete: boolean): Record<string, StageStatus> {
+  const order = ["narrative", "scenes", "images", "audio", "video"];
+  const result: Record<string, StageStatus> = {};
+  for (const s of order) {
+    const idx = order.indexOf(s);
+    const activeIdx = order.indexOf(activeStage);
+    if (isComplete) {
+      result[s] = "complete";
+    } else if (idx < activeIdx) {
+      result[s] = "complete";
+    } else if (idx === activeIdx) {
+      result[s] = "active";
+    } else {
+      result[s] = "pending";
+    }
+  }
+  return result;
+}
 
 function GenerateContent() {
   const searchParams = useSearchParams();
@@ -16,12 +96,26 @@ function GenerateContent() {
   const [submitted, setSubmitted] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [teaser, setTeaser] = useState<string | null>(null);
-  const [statuses, setStatuses] = useState<Record<string, StageStatus>>({});
-  const [stageDetail, setStageDetail] = useState<string>("");
-  const [email, setEmail] = useState("");
-  const [emailSaved, setEmailSaved] = useState(false);
+  const [fakeStage, setFakeStage] = useState("narrative");
+  const [fakeDetail, setFakeDetail] = useState("");
+  const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRefs = useRef<NodeJS.Timeout[]>([]);
+  const realDoneRef = useRef(false);
+  const atVideoStageRef = useRef(false);
+
+  const addTimer = (fn: () => void, ms: number) => {
+    const t = setTimeout(fn, ms);
+    timerRefs.current.push(t);
+    return t;
+  };
+
+  const clearAllTimers = () => {
+    timerRefs.current.forEach(clearTimeout);
+    timerRefs.current = [];
+  };
 
   // Auto-submit if query param present
   useEffect(() => {
@@ -31,28 +125,100 @@ function GenerateContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
+  // Start fake progress timer chain once jobId is set
   useEffect(() => {
     if (!jobId) return;
 
-    // Subscribe via Supabase Realtime
+    const stageOrder = ["narrative", "scenes", "images", "audio", "video"];
+    let elapsed = 0;
+
+    // Cycle fake detail text within a stage
+    const cycleDetails = (stage: string) => {
+      const details = FAKE_DETAILS[stage];
+      const interval = DETAIL_INTERVALS[stage];
+      let i = 0;
+      setFakeDetail(details[0]);
+      const tick = () => {
+        i = (i + 1) % details.length;
+        setFakeDetail(details[i]);
+        const t = setTimeout(tick, interval);
+        timerRefs.current.push(t);
+      };
+      const t = setTimeout(tick, interval);
+      timerRefs.current.push(t);
+    };
+
+    // Start narrative cycling immediately
+    cycleDetails("narrative");
+
+    // Schedule stage transitions
+    for (let i = 0; i < stageOrder.length - 1; i++) {
+      const nextStage = stageOrder[i + 1];
+      elapsed += STAGE_DURATIONS[stageOrder[i]];
+      const capturedElapsed = elapsed;
+      addTimer(() => {
+        clearAllTimers();
+        setFakeStage(nextStage);
+        setFakeDetail(FAKE_DETAILS[nextStage][0]);
+        if (nextStage === "video") {
+          atVideoStageRef.current = true;
+          // If real job already done, complete immediately
+          if (realDoneRef.current) {
+            setIsComplete(true);
+          } else {
+            cycleDetails("video");
+          }
+        } else {
+          cycleDetails(nextStage);
+        }
+      }, capturedElapsed);
+    }
+
+    return () => clearAllTimers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId]);
+
+  // Real DB polling — only used for completion/error detection
+  useEffect(() => {
+    if (!jobId) return;
+
+    const handleRealStatus = (status: string, videoUrl?: string) => {
+      if (status === "complete" && videoUrl) {
+        realDoneRef.current = true;
+        if (atVideoStageRef.current) {
+          clearAllTimers();
+          setFakeDetail("Finalizing your documentary...");
+          setTimeout(() => {
+            setIsComplete(true);
+            if (pollRef.current) clearInterval(pollRef.current);
+            setTimeout(() => router.push(`/watch/${jobId}`), 800);
+          }, 1200);
+        }
+      }
+      if (status === "error") {
+        clearAllTimers();
+        if (pollRef.current) clearInterval(pollRef.current);
+        setError("Generation failed. Please try again.");
+      }
+    };
+
     const channel = supabase
       .channel(`job-${jobId}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "videos", filter: `id=eq.${jobId}` },
         (payload) => {
-          const row = payload.new as { status: string; stage_detail?: string; video_url?: string };
-          handleStatusUpdate(row.status, row.stage_detail, row.video_url);
+          const row = payload.new as { status: string; video_url?: string };
+          handleRealStatus(row.status, row.video_url);
         }
       )
       .subscribe();
 
-    // Fallback poll every 5s
     pollRef.current = setInterval(async () => {
       const res = await fetch(`/api/job/${jobId}`);
       if (res.ok) {
         const data = await res.json();
-        handleStatusUpdate(data.status, data.stage_detail, data.video_url);
+        handleRealStatus(data.status, data.video_url);
       }
     }, 5000);
 
@@ -63,52 +229,12 @@ function GenerateContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
-  function handleStatusUpdate(status: string, detail?: string, videoUrl?: string) {
-    const stageMap: Record<string, string> = {
-      narrative: "narrative",
-      scenes: "scenes",
-      images: "images",
-      audio: "audio",
-      assembling: "video",
-      complete: "video",
-    };
-
-    const newStatuses: Record<string, StageStatus> = {};
-    const order = ["narrative", "scenes", "images", "audio", "video"];
-    const activeStage = stageMap[status];
-
-    for (const s of order) {
-      const idx = order.indexOf(s);
-      const activeIdx = order.indexOf(activeStage ?? "");
-      if (status === "complete") {
-        newStatuses[s] = "complete";
-      } else if (idx < activeIdx) {
-        newStatuses[s] = "complete";
-      } else if (idx === activeIdx) {
-        newStatuses[s] = "active";
-      } else {
-        newStatuses[s] = "pending";
-      }
-    }
-
-    setStatuses(newStatuses);
-    if (detail) setStageDetail(detail);
-
-    if (status === "complete" && videoUrl) {
-      if (pollRef.current) clearInterval(pollRef.current);
-      router.push(`/watch/${jobId}`);
-    }
-    if (status === "error") {
-      setError("Generation failed. Please try again.");
-      if (pollRef.current) clearInterval(pollRef.current);
-    }
-  }
-
   async function handleSubmit(prompt: string) {
     if (!prompt.trim()) return;
     setSubmitted(true);
     setError(null);
-    setStatuses({ narrative: "active" });
+    setFakeStage("narrative");
+    setFakeDetail("Analyzing historical context...");
 
     try {
       const res = await fetch("/api/generate", {
@@ -127,26 +253,15 @@ function GenerateContent() {
 
       setJobId(data.jobId);
       setTeaser(data.teaser);
-      setStatuses({ narrative: "complete", scenes: "active" });
     } catch {
       setError("Could not connect to the server. Please try again.");
       setSubmitted(false);
     }
   }
 
-  async function saveEmail(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email || !jobId) return;
-    await fetch("/api/job/" + jobId + "/notify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    setEmailSaved(true);
-  }
-
+  const statuses = buildStatuses(fakeStage, isComplete);
   const completedCount = Object.values(statuses).filter((s) => s === "complete").length;
-  const progressPct = Math.round((completedCount / STAGES.length) * 100);
+  const progressPct = isComplete ? 100 : Math.round((completedCount / STAGES.length) * 100);
 
   return (
     <div className="min-h-dvh bg-parchment">
@@ -154,7 +269,6 @@ function GenerateContent() {
 
       <div className="pt-24 pb-20 px-6 flex flex-col items-center min-h-dvh">
         {!submitted ? (
-          /* Input state */
           <div className="w-full max-w-2xl mx-auto mt-16 animate-fade-in">
             <h1 className="font-serif text-3xl md:text-4xl text-charcoal text-center mb-3">
               What would you change?
@@ -193,16 +307,13 @@ function GenerateContent() {
               </button>
             </form>
 
-            {/* Time estimate */}
             <div className="mt-8 flex items-center justify-center gap-2 text-sm font-sans text-charcoal-muted">
               <Clock className="w-4 h-4" />
-              <span>Generation takes 3&ndash;5 minutes. Hang tight.</span>
+              <span>Generation takes 8&ndash;10 minutes. Hang tight.</span>
             </div>
           </div>
         ) : (
-          /* Generation in progress */
           <div className="w-full max-w-xl mx-auto mt-12 animate-fade-in">
-            {/* Header */}
             <div className="text-center mb-10">
               <p className="text-xs font-sans font-medium tracking-[0.2em] uppercase text-charcoal-muted mb-3">
                 Generating your documentary
@@ -212,11 +323,10 @@ function GenerateContent() {
               </h1>
               <div className="flex items-center justify-center gap-2 text-sm font-sans text-charcoal-muted mt-3">
                 <Clock className="w-3.5 h-3.5" />
-                <span>Estimated time: 3&ndash;5 minutes</span>
+                <span>Estimated time: 8&ndash;10 minutes</span>
               </div>
             </div>
 
-            {/* Progress bar */}
             <div className="mb-8">
               <div className="flex justify-between text-xs font-sans text-charcoal-muted mb-2">
                 <span>Progress</span>
@@ -230,14 +340,12 @@ function GenerateContent() {
               </div>
             </div>
 
-            {/* Stage list */}
             <GenerationProgress
               stages={STAGES}
               statuses={statuses}
-              currentDetail={stageDetail}
+              currentDetail={fakeDetail}
             />
 
-            {/* Teaser */}
             {teaser && (
               <div className="mt-10 p-5 bg-white border border-border-light rounded-xl animate-fade-in">
                 <p className="text-xs font-sans font-medium tracking-widest uppercase text-charcoal-muted mb-2">
@@ -247,36 +355,11 @@ function GenerateContent() {
               </div>
             )}
 
-            {/* Email notification */}
-            {!emailSaved ? (
-              <form onSubmit={saveEmail} className="mt-8">
-                <p className="text-xs font-sans text-charcoal-muted mb-3 text-center">
-                  Leaving? Get notified by email when it&apos;s ready.
-                </p>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-charcoal-muted" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="your@email.com"
-                      className="w-full pl-9 pr-4 py-3 text-sm font-sans bg-white border border-border-light rounded-lg focus:outline-none focus:border-accent-red transition-colors"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={!email}
-                    className="px-4 py-3 text-sm font-sans font-medium bg-charcoal text-parchment rounded-lg hover:bg-charcoal-soft transition-colors disabled:opacity-40"
-                  >
-                    Notify me
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <p className="mt-8 text-sm font-sans text-center text-charcoal-muted animate-fade-in">
-                ✓ We&apos;ll email you at {email} when it&apos;s ready.
-              </p>
+            {error && (
+              <div className="mt-8 flex items-start gap-2 text-sm text-accent-red font-sans">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
             )}
           </div>
         )}

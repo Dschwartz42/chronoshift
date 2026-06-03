@@ -2,6 +2,26 @@ import { VideoRecord } from "./types";
 
 export const EXAMPLE_VIDEOS: Partial<VideoRecord>[] = [
   {
+    id: "0f625caa-bef3-403c-8726-b4f9495f9a55",
+    prompt: "What if Germany won WWII?",
+    title: "Iron Meridian: A World Under the Eagle",
+    duration_seconds: 346,
+    thumbnail_url: "https://iqafznzwckyodegoyanc.supabase.co/storage/v1/object/public/videos/0f625caa-bef3-403c-8726-b4f9495f9a55/thumbnail.jpg",
+    video_url: "https://iqafznzwckyodegoyanc.supabase.co/storage/v1/object/public/videos/0f625caa-bef3-403c-8726-b4f9495f9a55/video.mp4",
+    is_public: true,
+    status: "complete",
+  },
+  {
+    id: "7bd35572-c59c-4ce6-89f7-55345f28639d",
+    prompt: "What if the printing press was never invented?",
+    title: "Ink Never Spilled: A World Without the Printing Press",
+    duration_seconds: 305,
+    thumbnail_url: "https://iqafznzwckyodegoyanc.supabase.co/storage/v1/object/public/videos/7bd35572-c59c-4ce6-89f7-55345f28639d/thumbnail.jpg",
+    video_url: "https://iqafznzwckyodegoyanc.supabase.co/storage/v1/object/public/videos/7bd35572-c59c-4ce6-89f7-55345f28639d/video.mp4",
+    is_public: true,
+    status: "complete",
+  },
+  {
     id: "civil-war-south",
     prompt: "What if the South won the Civil War?",
     title: "The Confederate States of America: 160 Years Later",
