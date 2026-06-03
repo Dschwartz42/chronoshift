@@ -178,18 +178,12 @@ def build_scene_video(scene: dict, image_path: str, audio_path: str, tmpdir: str
     duration = get_audio_duration(audio_path)
     output_path = f"{tmpdir}/scene_{scene['id']}_out.mp4"
 
-    title_escaped = scene["title"].replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
-
     cmd = [
         "ffmpeg", "-y",
         "-loop", "1", "-r", "1", "-i", image_path,
         "-i", audio_path,
-        "-filter_complex", (
-            f"[0:v]scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
-            f"drawtext=text='{title_escaped}'"
-            f":fontsize=28:fontcolor=white:x=(w-text_w)/2:y=h-80"
-            f":enable='between(t,0,3)':alpha='if(lt(t,0.5),t/0.5,if(gt(t,2.5),(3-t)/0.5,1))'[v]"
-        ),
+        "-filter_complex",
+        "[0:v]scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720[v]",
         "-map", "[v]",
         "-map", "1:a",
         "-r", "1",
