@@ -174,16 +174,19 @@ def get_audio_duration(audio_path: str) -> float:
 
 
 def build_scene_video(scene: dict, image_path: str, audio_path: str, tmpdir: str) -> str:
-    """Assemble one scene: static image + title overlay + narration audio."""
+    """Assemble one scene: slow pan + narration audio."""
     duration = get_audio_duration(audio_path)
     output_path = f"{tmpdir}/scene_{scene['id']}_out.mp4"
 
+    # Slow pan: scale to 115% width, crop panning left→right over the duration.
+    # At 1fps this is very fast to encode (one frame per second).
     cmd = [
         "ffmpeg", "-y",
         "-loop", "1", "-r", "1", "-i", image_path,
         "-i", audio_path,
         "-filter_complex",
-        "[0:v]scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720[v]",
+        f"[0:v]scale=1472:720:force_original_aspect_ratio=increase,"
+        f"crop=1280:720:x='min((iw-1280)*t/{duration},iw-1280)':y='(ih-720)/2'[v]",
         "-map", "[v]",
         "-map", "1:a",
         "-r", "1",
@@ -222,20 +225,27 @@ def build_title_card(what_if: str, tmpdir: str) -> str:
 
 
 def build_reality_card(reality: str, tmpdir: str) -> str:
-    """Create closing 'Historical Reality' card: 5s fade out."""
+    """Create closing 'Historical Reality' card using textfile to avoid escaping issues."""
     output = f"{tmpdir}/reality_card.mp4"
-    header_escaped = "Historical Reality"
-    text_escaped = reality[:120].replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
+
+    # Write text to files — avoids all drawtext escaping problems
+    header_file = f"{tmpdir}/reality_header.txt"
+    body_file = f"{tmpdir}/reality_body.txt"
+    with open(header_file, "w") as f:
+        f.write("Historical Reality")
+    with open(body_file, "w") as f:
+        f.write(reality[:160])
+
     cmd = [
         "ffmpeg", "-y",
         "-f", "lavfi", "-i", "color=c=0x1A1714:size=1280x720:rate=1:duration=5",
         "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono:duration=5",
         "-filter_complex",
         f"[0:v]"
-        f"drawtext=text='{header_escaped}':fontsize=22:fontcolor=#C9A84C:"
-        f"x=(w-text_w)/2:y=(h/2-60):alpha='if(lt(t,1),t,if(gt(t,4),5-t,1))',"
-        f"drawtext=text='{text_escaped}':fontsize=18:fontcolor=white:"
-        f"x=(w-text_w)/2:y=(h/2):alpha='if(lt(t,1),t,if(gt(t,4),5-t,1))'[v]",
+        f"drawtext=textfile={header_file}:fontsize=24:fontcolor=#C9A84C:"
+        f"x=(w-text_w)/2:y=(h/2-70),"
+        f"drawtext=textfile={body_file}:fontsize=16:fontcolor=white:"
+        f"x=80:y=(h/2)[v]",
         "-map", "[v]", "-map", "1:a",
         "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-t", "5",
         output,
