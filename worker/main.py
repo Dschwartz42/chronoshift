@@ -195,6 +195,7 @@ def build_scene_video(scene: dict, image_path: str, audio_path: str, tmpdir: str
         "-r", "1",
         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
         "-c:a", "aac", "-b:a", "128k",
+        "-movflags", "+faststart",
         "-t", str(duration),
         "-shortest",
         output_path,
@@ -268,6 +269,7 @@ def concat_with_crossfades(video_paths: list[str], tmpdir: str) -> str:
         "ffmpeg", "-y",
         "-f", "concat", "-safe", "0", "-i", list_path,
         "-c", "copy",
+        "-movflags", "+faststart",
         output,
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
