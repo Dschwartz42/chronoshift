@@ -182,7 +182,7 @@ def build_scene_video(scene: dict, image_path: str, audio_path: str, tmpdir: str
 
     cmd = [
         "ffmpeg", "-y",
-        "-loop", "1", "-i", image_path,
+        "-loop", "1", "-r", "1", "-i", image_path,
         "-i", audio_path,
         "-filter_complex", (
             f"[0:v]scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,"
@@ -192,6 +192,7 @@ def build_scene_video(scene: dict, image_path: str, audio_path: str, tmpdir: str
         ),
         "-map", "[v]",
         "-map", "1:a",
+        "-r", "1",
         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
         "-c:a", "aac", "-b:a", "128k",
         "-t", str(duration),
@@ -210,7 +211,7 @@ def build_title_card(what_if: str, tmpdir: str) -> str:
     text_escaped = what_if.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
     cmd = [
         "ffmpeg", "-y",
-        "-f", "lavfi", "-i", "color=c=black:size=1280x720:rate=24:duration=4",
+        "-f", "lavfi", "-i", "color=c=black:size=1280x720:rate=1:duration=4",
         "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono:duration=4",
         "-filter_complex",
         f"[0:v]drawtext=text='{text_escaped}':fontsize=36:fontcolor=white:"
@@ -232,7 +233,7 @@ def build_reality_card(reality: str, tmpdir: str) -> str:
     text_escaped = reality[:120].replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
     cmd = [
         "ffmpeg", "-y",
-        "-f", "lavfi", "-i", "color=c=0x1A1714:size=1280x720:rate=24:duration=5",
+        "-f", "lavfi", "-i", "color=c=0x1A1714:size=1280x720:rate=1:duration=5",
         "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono:duration=5",
         "-filter_complex",
         f"[0:v]"
