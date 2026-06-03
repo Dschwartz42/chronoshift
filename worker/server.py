@@ -37,9 +37,9 @@ async def trigger_job(
 @app.get("/health")
 def health():
     from main import ELEVENLABS_KEY
-    return {"status": "ok", "version": "v12", "el_key_prefix": ELEVENLABS_KEY[:8], "el_key_len": len(ELEVENLABS_KEY)}
+    return {"status": "ok", "version": "v13", "el_key_prefix": ELEVENLABS_KEY[:8], "el_key_len": len(ELEVENLABS_KEY)}
 
 
 @app.get("/version")
 def version():
-    return {"version": "v12"}
+    return {"version": "v13"}

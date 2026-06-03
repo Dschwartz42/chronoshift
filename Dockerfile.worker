@@ -8,7 +8,7 @@ COPY worker/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # bust cache on every deploy
-ARG CACHE_BUST=12
+ARG CACHE_BUST=13
 COPY worker/ .
 
 EXPOSE 8000
