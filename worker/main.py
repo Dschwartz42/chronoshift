@@ -344,9 +344,6 @@ async def process_job(job_id: str):
                 scene_vid = build_scene_video(scene, image_paths[i], audio_paths[i], tmpdir)
                 scene_videos.append(scene_vid)
 
-            reality_card = build_reality_card(narrative["historical_reality"], tmpdir)
-            scene_videos.append(reality_card)
-
             # Stitch all scenes
             update_status(job_id, "assembling", "Stitching final video...")
             final_video = concat_with_crossfades(scene_videos, tmpdir)
