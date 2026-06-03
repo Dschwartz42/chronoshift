@@ -252,49 +252,24 @@ def build_reality_card(reality: str, tmpdir: str) -> str:
 
 
 def concat_with_crossfades(video_paths: list[str], tmpdir: str) -> str:
-    """Stitch scene videos with 1-second crossfade transitions."""
+    """Stitch scene videos via stream-copy concat (fast, no re-encoding)."""
     output = f"{tmpdir}/final.mp4"
 
     if len(video_paths) == 1:
         return video_paths[0]
 
-    # Build complex filter for crossfades
-    inputs = []
-    for p in video_paths:
-        inputs.extend(["-i", p])
+    # Write concat list file
+    list_path = f"{tmpdir}/concat.txt"
+    with open(list_path, "w") as f:
+        for p in video_paths:
+            f.write(f"file '{p}'\n")
 
-    n = len(video_paths)
-    filter_parts = []
-    # xfade each consecutive pair
-    prev = "0:v"
-    audio_parts = ["0:a"]
-    offset = 0
-
-    for i in range(1, n):
-        dur_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                   "-of", "default=noprint_wrappers=1:nokey=1", video_paths[i - 1]]
-        dur = float(subprocess.run(dur_cmd, capture_output=True, text=True).stdout.strip())
-        offset += dur - 1.0  # 1s crossfade overlap
-        tag = f"v{i}"
-        filter_parts.append(f"[{prev}][{i}:v]xfade=transition=fade:duration=1:offset={offset:.2f}[{tag}]")
-        audio_parts.append(f"{i}:a")
-        prev = tag
-
-    # Mix audio streams
-    audio_filter = "".join(f"[{a}]" for a in audio_parts) + f"amix=inputs={n}:duration=first[aout]"
-    filter_parts.append(audio_filter)
-
-    full_filter = ";".join(filter_parts)
-
-    cmd = (
-        ["ffmpeg", "-y"]
-        + inputs
-        + ["-filter_complex", full_filter,
-           "-map", f"[{prev}]", "-map", "[aout]",
-           "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
-           "-c:a", "aac", "-b:a", "128k",
-           output]
-    )
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "concat", "-safe", "0", "-i", list_path,
+        "-c", "copy",
+        output,
+    ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"ffmpeg concat error: {result.stderr[-500:]}")
