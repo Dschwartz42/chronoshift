@@ -182,15 +182,15 @@ def build_scene_video(scene: dict, image_path: str, audio_path: str, tmpdir: str
     # At 1fps this is very fast to encode (one frame per second).
     cmd = [
         "ffmpeg", "-y",
-        "-loop", "1", "-r", "1", "-i", image_path,
+        "-loop", "1", "-i", image_path,
         "-i", audio_path,
         "-filter_complex",
         f"[0:v]scale=1472:720:force_original_aspect_ratio=increase,"
         f"crop=1280:720:x='min((iw-1280)*t/{duration},iw-1280)':y='(ih-720)/2'[v]",
         "-map", "[v]",
         "-map", "1:a",
-        "-r", "1",
-        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
+        "-r", "25",
+        "-c:v", "libx264", "-preset", "ultrafast", "-profile:v", "baseline", "-level:v", "3.1", "-crf", "26",
         "-c:a", "aac", "-b:a", "128k",
         "-movflags", "+faststart",
         "-t", str(duration),
@@ -209,13 +209,14 @@ def build_title_card(what_if: str, tmpdir: str) -> str:
     text_escaped = what_if.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
     cmd = [
         "ffmpeg", "-y",
-        "-f", "lavfi", "-i", "color=c=black:size=1280x720:rate=1:duration=4",
+        "-f", "lavfi", "-i", "color=c=black:size=1280x720:rate=25:duration=4",
         "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono:duration=4",
         "-filter_complex",
         f"[0:v]drawtext=text='{text_escaped}':fontsize=36:fontcolor=white:"
         f"x=(w-text_w)/2:y=(h-text_h)/2:alpha='if(lt(t,1),t,if(gt(t,3),4-t,1))'[v]",
         "-map", "[v]", "-map", "1:a",
-        "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-t", "4",
+        "-c:v", "libx264", "-preset", "ultrafast", "-profile:v", "baseline", "-level:v", "3.1",
+        "-c:a", "aac", "-t", "4",
         output,
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -238,7 +239,7 @@ def build_reality_card(reality: str, tmpdir: str) -> str:
 
     cmd = [
         "ffmpeg", "-y",
-        "-f", "lavfi", "-i", "color=c=0x1A1714:size=1280x720:rate=1:duration=5",
+        "-f", "lavfi", "-i", "color=c=0x1A1714:size=1280x720:rate=25:duration=5",
         "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono:duration=5",
         "-filter_complex",
         f"[0:v]"
@@ -247,7 +248,8 @@ def build_reality_card(reality: str, tmpdir: str) -> str:
         f"drawtext=textfile={body_file}:fontsize=16:fontcolor=white:"
         f"x=80:y=(h/2)[v]",
         "-map", "[v]", "-map", "1:a",
-        "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-t", "5",
+        "-c:v", "libx264", "-preset", "ultrafast", "-profile:v", "baseline", "-level:v", "3.1",
+        "-c:a", "aac", "-t", "5",
         output,
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
