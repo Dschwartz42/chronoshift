@@ -178,9 +178,8 @@ def build_scene_video(scene: dict, image_path: str, audio_path: str, tmpdir: str
     duration = get_audio_duration(audio_path)
     output_path = f"{tmpdir}/scene_{scene['id']}_out.mp4"
 
-    # Ken Burns zoom + title card overlay + audio
     title_escaped = scene["title"].replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
-    fps = 30
+    fps = 24
     frames = int(duration * fps)
 
     cmd = [
@@ -188,24 +187,26 @@ def build_scene_video(scene: dict, image_path: str, audio_path: str, tmpdir: str
         "-loop", "1", "-i", image_path,
         "-i", audio_path,
         "-filter_complex", (
-            f"[0:v]scale=1920:1080:force_original_aspect_ratio=increase,"
-            f"crop=1920:1080,"
-            f"zoompan=z='min(zoom+0.0015,1.5)':d={frames}:"
+            f"[0:v]scale=1280:720:force_original_aspect_ratio=increase,"
+            f"crop=1280:720,"
+            f"zoompan=z='min(zoom+0.001,1.3)':d={frames}:fps={fps}:"
             f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)',"
-            f"scale=1920:1080,"
+            f"scale=1280:720,"
             f"drawtext=text='{title_escaped}'"
-            f":fontsize=36:fontcolor=white:x=(w-text_w)/2:y=h-120"
+            f":fontsize=28:fontcolor=white:x=(w-text_w)/2:y=h-80"
             f":enable='between(t,0,3)':alpha='if(lt(t,0.5),t/0.5,if(gt(t,2.5),(3-t)/0.5,1))'[v]"
         ),
         "-map", "[v]",
         "-map", "1:a",
-        "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
         "-c:a", "aac", "-b:a", "128k",
         "-t", str(duration),
         "-shortest",
         output_path,
     ]
-    subprocess.run(cmd, check=True, capture_output=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg scene error: {result.stderr[-500:]}")
     return output_path
 
 
@@ -215,16 +216,18 @@ def build_title_card(what_if: str, tmpdir: str) -> str:
     text_escaped = what_if.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
     cmd = [
         "ffmpeg", "-y",
-        "-f", "lavfi", "-i", "color=c=black:size=1920x1080:rate=30:duration=4",
+        "-f", "lavfi", "-i", "color=c=black:size=1280x720:rate=24:duration=4",
         "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono:duration=4",
         "-filter_complex",
-        f"[0:v]drawtext=text='{text_escaped}':fontsize=48:fontcolor=white:"
+        f"[0:v]drawtext=text='{text_escaped}':fontsize=36:fontcolor=white:"
         f"x=(w-text_w)/2:y=(h-text_h)/2:alpha='if(lt(t,1),t,if(gt(t,3),4-t,1))'[v]",
         "-map", "[v]", "-map", "1:a",
-        "-c:v", "libx264", "-c:a", "aac", "-t", "4",
+        "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-t", "4",
         output,
     ]
-    subprocess.run(cmd, check=True, capture_output=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg title card error: {result.stderr[-500:]}")
     return output
 
 
@@ -235,19 +238,21 @@ def build_reality_card(reality: str, tmpdir: str) -> str:
     text_escaped = reality[:120].replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
     cmd = [
         "ffmpeg", "-y",
-        "-f", "lavfi", "-i", "color=c=0x1A1714:size=1920x1080:rate=30:duration=5",
+        "-f", "lavfi", "-i", "color=c=0x1A1714:size=1280x720:rate=24:duration=5",
         "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono:duration=5",
         "-filter_complex",
         f"[0:v]"
-        f"drawtext=text='{header_escaped}':fontsize=28:fontcolor=#C9A84C:"
-        f"x=(w-text_w)/2:y=(h/2-80):alpha='if(lt(t,1),t,if(gt(t,4),5-t,1))',"
-        f"drawtext=text='{text_escaped}':fontsize=24:fontcolor=white:"
+        f"drawtext=text='{header_escaped}':fontsize=22:fontcolor=#C9A84C:"
+        f"x=(w-text_w)/2:y=(h/2-60):alpha='if(lt(t,1),t,if(gt(t,4),5-t,1))',"
+        f"drawtext=text='{text_escaped}':fontsize=18:fontcolor=white:"
         f"x=(w-text_w)/2:y=(h/2):alpha='if(lt(t,1),t,if(gt(t,4),5-t,1))'[v]",
         "-map", "[v]", "-map", "1:a",
-        "-c:v", "libx264", "-c:a", "aac", "-t", "5",
+        "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-t", "5",
         output,
     ]
-    subprocess.run(cmd, check=True, capture_output=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg reality card error: {result.stderr[-500:]}")
     return output
 
 
@@ -291,11 +296,13 @@ def concat_with_crossfades(video_paths: list[str], tmpdir: str) -> str:
         + inputs
         + ["-filter_complex", full_filter,
            "-map", f"[{prev}]", "-map", "[aout]",
-           "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+           "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
            "-c:a", "aac", "-b:a", "128k",
            output]
     )
-    subprocess.run(cmd, check=True, capture_output=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg concat error: {result.stderr[-500:]}")
     return output
 
 
