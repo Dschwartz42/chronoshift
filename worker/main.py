@@ -182,7 +182,7 @@ def build_scene_video(scene: dict, image_path: str, audio_path: str, tmpdir: str
     # At 1fps this is very fast to encode (one frame per second).
     cmd = [
         "ffmpeg", "-y",
-        "-loop", "1", "-r", "25", "-i", image_path,
+        "-loop", "1", "-r", "3", "-i", image_path,
         "-i", audio_path,
         "-vf", "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720",
         "-map", "0:v",
@@ -206,7 +206,7 @@ def build_title_card(what_if: str, tmpdir: str) -> str:
     text_escaped = what_if.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
     cmd = [
         "ffmpeg", "-y",
-        "-f", "lavfi", "-i", "color=c=black:size=1280x720:rate=25:duration=4",
+        "-f", "lavfi", "-i", "color=c=black:size=1280x720:rate=3:duration=4",
         "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono:duration=4",
         "-filter_complex",
         f"[0:v]drawtext=text='{text_escaped}':fontsize=36:fontcolor=white:"
@@ -236,7 +236,7 @@ def build_reality_card(reality: str, tmpdir: str) -> str:
 
     cmd = [
         "ffmpeg", "-y",
-        "-f", "lavfi", "-i", "color=c=0x1A1714:size=1280x720:rate=25:duration=5",
+        "-f", "lavfi", "-i", "color=c=0x1A1714:size=1280x720:rate=3:duration=5",
         "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono:duration=5",
         "-filter_complex",
         f"[0:v]"
