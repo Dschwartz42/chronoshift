@@ -1,23 +1,35 @@
 import Link from "next/link";
 import { ChevronRight, Play } from "lucide-react";
 import { EXAMPLE_VIDEOS, formatDuration } from "@/lib/mock-data";
+import { getServiceClient } from "@/lib/supabase";
 import ShareButton from "./ShareButton";
+import VideoPlayer from "./VideoPlayer";
 
 interface WatchPageProps {
   params: { id: string };
 }
 
-function getVideo(id: string) {
-  return EXAMPLE_VIDEOS.find((v) => v.id === id) ?? null;
+async function getVideo(id: string) {
+  const mock = EXAMPLE_VIDEOS.find((v) => v.id === id);
+  if (mock) return mock;
+  try {
+    const sb = getServiceClient();
+    const { data } = await sb.from("videos").select("*").eq("id", id).single();
+    return data ?? null;
+  } catch {
+    return null;
+  }
 }
 
-export default function WatchPage({ params }: WatchPageProps) {
-  const video = getVideo(params.id);
+export default async function WatchPage({ params }: WatchPageProps) {
+  const video = await getVideo(params.id);
 
-  // For pre-generated videos or videos from DB
-  const title = video?.prompt ?? "Alternate History Documentary";
-  const docTitle = video?.title ?? title;
-  const duration = video?.duration_seconds ? formatDuration(video.duration_seconds) : null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const v = video as any;
+  const title = v?.prompt ?? "Alternate History Documentary";
+  const docTitle = v?.title ?? v?.narrative_json?.title ?? title;
+  const duration = v?.duration_seconds ? formatDuration(v.duration_seconds) : null;
+  const historicalReality = v?.narrative_json?.historical_reality ?? null;
 
   const relatedVideos = EXAMPLE_VIDEOS.filter((v) => v.id !== params.id).slice(0, 4);
 
@@ -47,15 +59,10 @@ export default function WatchPage({ params }: WatchPageProps) {
           <div className="max-w-5xl mx-auto">
             <div className="aspect-video bg-[#0A0908] flex items-center justify-center relative group">
               {video?.video_url ? (
-                <video
-                  controls
+                <VideoPlayer
+                  src={video.video_url}
                   poster={video.thumbnail_url ?? undefined}
-                  className="w-full h-full"
-                  preload="metadata"
-                >
-                  <source src={video.video_url} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
+                />
               ) : (
                 /* Placeholder for pre-launch */
                 <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#1A1714] to-[#0A0908]">
@@ -95,32 +102,28 @@ export default function WatchPage({ params }: WatchPageProps) {
           </div>
 
           {/* Historical Reality */}
-          <div className="mb-12">
-            <h2 className="font-serif text-lg text-[#F5F0EA] mb-4 flex items-center gap-2">
-              <span className="w-1 h-5 bg-accent-red rounded-full" />
-              Historical Reality
-            </h2>
-            <p className="font-sans text-[#9A9088] text-sm md:text-base leading-relaxed">
-              {params.id === "civil-war-south" &&
-                "The Union won the Civil War in April 1865 when Confederate General Robert E. Lee surrendered at Appomattox Court House. The war ended slavery, preserved the United States as one nation, and set the stage for Reconstruction — a turbulent period that would shape American society for more than a century."}
-              {params.id === "british-colonies" &&
-                "The American colonies declared independence from Britain in 1776 and, following the Revolutionary War, became the United States of America in 1783. Britain went on to build the largest empire in history, but the loss of the American colonies marked the beginning of a shift away from direct colonial rule."}
-              {params.id === "thermopylae" &&
-                "The Battle of Thermopylae in 480 BC saw a small force of Greek warriors, including 300 Spartans under King Leonidas, hold off the massive Persian army of Xerxes I for three days. Despite their heroic last stand, the Greeks were defeated. However, the battle bought time for the Greek city-states and became a legendary symbol of courage."}
-              {params.id === "alexander-80" &&
-                "Alexander the Great died in Babylon in 323 BC at just 32 years of age. The cause of his death remains disputed — possibly typhoid fever, poisoning, or complications from his many war wounds. His sudden death left no clear successor, triggering the Wars of the Diadochi that fragmented his vast empire."}
-              {params.id === "library-alexandria" &&
-                "The Library of Alexandria, founded in the 3rd century BC, was one of the largest and most significant libraries of the ancient world. It suffered multiple destructions over centuries — including fires during Julius Caesar's civil war, the edict of Theophilus in 391 AD, and the Arab conquest in 642 AD — resulting in the irretrievable loss of countless ancient texts."}
-              {params.id === "cuban-missile" &&
-                "The Cuban Missile Crisis of October 1962 brought the world to the brink of nuclear war before being resolved through careful diplomacy. Soviet Premier Khrushchev agreed to remove missiles from Cuba in exchange for a US pledge not to invade Cuba, and the secret removal of American Jupiter missiles from Turkey."}
-              {params.id === "china-americas" &&
-                "Chinese Admiral Zheng He led massive treasure fleets across Southeast Asia, India, Arabia, and East Africa between 1405 and 1433. After Zheng He's death, the Ming Dynasty turned inward, abandoning its maritime exploration program — leaving the 'discovery' of the Americas to European explorers, beginning with Columbus in 1492."}
-              {params.id === "roman-empire" &&
-                "The Western Roman Empire formally fell in 476 AD when the Germanic chieftain Odoacer deposed the last emperor, Romulus Augustulus. The Eastern Roman Empire (Byzantine) survived until 1453 AD. The fall of Rome is considered a watershed moment marking the end of Classical Antiquity and the beginning of the Middle Ages in Europe."}
-              {!EXAMPLE_VIDEOS.some((v) => v.id === params.id) &&
-                "This is a user-generated alternate history documentary. The historical reality section will appear here once the documentary is published."}
-            </p>
-          </div>
+          {(historicalReality || EXAMPLE_VIDEOS.some((v) => v.id === params.id)) && (
+            <div className="mb-12">
+              <h2 className="font-serif text-lg text-[#F5F0EA] mb-4 flex items-center gap-2">
+                <span className="w-1 h-5 bg-accent-red rounded-full" />
+                Historical Reality
+              </h2>
+              <p className="font-sans text-[#9A9088] text-sm md:text-base leading-relaxed">
+                {historicalReality ?? (
+                  <>
+                    {params.id === "civil-war-south" && "The Union won the Civil War in April 1865 when Confederate General Robert E. Lee surrendered at Appomattox Court House."}
+                    {params.id === "british-colonies" && "The American colonies declared independence from Britain in 1776 and became the United States of America in 1783."}
+                    {params.id === "thermopylae" && "The Battle of Thermopylae in 480 BC saw 300 Spartans hold off the Persian army for three days before being defeated."}
+                    {params.id === "alexander-80" && "Alexander the Great died in Babylon in 323 BC at just 32 years of age, leaving no clear successor."}
+                    {params.id === "library-alexandria" && "The Library of Alexandria suffered multiple destructions over centuries, resulting in the loss of countless ancient texts."}
+                    {params.id === "cuban-missile" && "The Cuban Missile Crisis of 1962 was resolved through diplomacy when the Soviets agreed to remove missiles from Cuba."}
+                    {params.id === "china-americas" && "After Zheng He's death, the Ming Dynasty abandoned maritime exploration, leaving the Americas to European explorers."}
+                    {params.id === "roman-empire" && "The Western Roman Empire fell in 476 AD when Germanic chieftain Odoacer deposed the last emperor, Romulus Augustulus."}
+                  </>
+                )}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Related videos */}
