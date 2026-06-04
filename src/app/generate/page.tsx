@@ -162,9 +162,14 @@ function GenerateContent() {
         setFakeDetail(FAKE_DETAILS[nextStage][0]);
         if (nextStage === "video") {
           atVideoStageRef.current = true;
-          // If real job already done, complete immediately
+          // If real job already done, redirect immediately
           if (realDoneRef.current) {
-            setIsComplete(true);
+            clearAllTimers();
+            setFakeDetail("Finalizing your documentary...");
+            setTimeout(() => {
+              setIsComplete(true);
+              setTimeout(() => router.push(`/watch/${jobId}`), 800);
+            }, 1200);
           } else {
             cycleDetails("video");
           }
