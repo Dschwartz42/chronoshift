@@ -81,6 +81,26 @@ export const EXAMPLE_VIDEOS: Partial<VideoRecord>[] = [
     is_public: true,
     status: "complete",
   },
+  {
+    id: "3242f2a6-3a3e-4fea-8f18-50a00cc3e648",
+    prompt: "What if the Japanese never bombed Pearl Harbor?",
+    title: "The War That Never Came: America and the Silent Pacific",
+    duration_seconds: 275,
+    thumbnail_url: "https://iqafznzwckyodegoyanc.supabase.co/storage/v1/object/public/videos/3242f2a6-3a3e-4fea-8f18-50a00cc3e648/thumbnail.jpg",
+    video_url: "https://iqafznzwckyodegoyanc.supabase.co/storage/v1/object/public/videos/3242f2a6-3a3e-4fea-8f18-50a00cc3e648/video.mp4",
+    is_public: true,
+    status: "complete",
+  },
+  {
+    id: "d7ec71ad-204b-438e-ad21-66dc0df28309",
+    prompt: "What if the British still controlled Ireland?",
+    title: "The Emerald Crown: An Undivided Island",
+    duration_seconds: 317,
+    thumbnail_url: "https://iqafznzwckyodegoyanc.supabase.co/storage/v1/object/public/videos/d7ec71ad-204b-438e-ad21-66dc0df28309/thumbnail.jpg",
+    video_url: "https://iqafznzwckyodegoyanc.supabase.co/storage/v1/object/public/videos/d7ec71ad-204b-438e-ad21-66dc0df28309/video.mp4",
+    is_public: true,
+    status: "complete",
+  },
 ];
 
 export function formatDuration(seconds: number): string {

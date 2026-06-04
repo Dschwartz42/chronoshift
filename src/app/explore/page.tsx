@@ -19,6 +19,8 @@ const VIDEO_CATEGORIES: Record<string, Category> = {
   "1e5eff86-e117-48c0-9c57-0a4c4497169e": "Ancient World",       // Alexander the Great
   "32f13f4b-a226-4393-87d4-91ef7af458bf": "Ancient World",       // Library of Alexandria
   "b7c2943a-e7ee-419e-abb9-2a34f74085a3": "Modern Era",          // Cuban Missile Crisis
+  "3242f2a6-3a3e-4fea-8f18-50a00cc3e648": "Modern Era",          // Pearl Harbor
+  "d7ec71ad-204b-438e-ad21-66dc0df28309": "Modern Era",          // British Ireland
 };
 
 export default function ExplorePage() {
