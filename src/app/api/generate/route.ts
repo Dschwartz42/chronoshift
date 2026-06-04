@@ -24,6 +24,7 @@ const NARRATIVE_SCHEMA = `{
   "what_if": "string - the original what-if question",
   "historical_reality": "string - 2-3 sentences on what actually happened",
   "teaser": "string - 2-3 sentence preview of what the documentary will cover",
+  "category": "Ancient World|American History|Modern Era|Science & Discovery",
   "scenes": [
     {
       "id": 1,
