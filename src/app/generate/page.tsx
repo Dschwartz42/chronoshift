@@ -106,12 +106,6 @@ function GenerateContent() {
   const realDoneRef = useRef(false);
   const atVideoStageRef = useRef(false);
 
-  const addTimer = (fn: () => void, ms: number) => {
-    const t = setTimeout(fn, ms);
-    timerRefs.current.push(t);
-    return t;
-  };
-
   const clearAllTimers = () => {
     timerRefs.current.forEach(clearTimeout);
     timerRefs.current = [];
