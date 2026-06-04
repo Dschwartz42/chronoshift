@@ -205,14 +205,16 @@ def build_scene_video(scene: dict, image_path: str, audio_path: str, tmpdir: str
 def build_title_card(what_if: str, tmpdir: str) -> str:
     """Create opening title card: black bg, white text, 4s."""
     output = f"{tmpdir}/title_card.mp4"
-    text_escaped = what_if.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
+    text_file = f"{tmpdir}/title_text.txt"
+    with open(text_file, "w") as f:
+        f.write(what_if)
     cmd = [
         "ffmpeg", "-y",
         "-f", "lavfi", "-i", "color=c=black:size=1280x720:rate=3:duration=4",
         "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono:duration=4",
         "-filter_complex",
-        f"[0:v]drawtext=text='{text_escaped}':fontsize=36:fontcolor=white:"
-        f"x=(w-text_w)/2:y=(h-text_h)/2:alpha='if(lt(t,1),t,if(gt(t,3),4-t,1))'[v]",
+        f"[0:v]drawtext=textfile={text_file}:fontsize=36:fontcolor=white:"
+        f"x=(w-text_w)/2:y=(h-text_h)/2[v]",
         "-map", "[v]", "-map", "1:a",
         "-c:v", "libx264", "-preset", "ultrafast",
         "-c:a", "aac", "-t", "4",
