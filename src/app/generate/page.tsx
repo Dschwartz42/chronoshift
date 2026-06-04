@@ -130,9 +130,8 @@ function GenerateContent() {
     if (!jobId) return;
 
     const stageOrder = ["narrative", "scenes", "images", "audio", "video"];
-    let elapsed = 0;
 
-    // Cycle fake detail text within a stage
+    // Cycle fake detail text within a stage — timers stored in timerRefs
     const cycleDetails = (stage: string) => {
       const details = FAKE_DETAILS[stage];
       const interval = DETAIL_INTERVALS[stage];
@@ -148,23 +147,21 @@ function GenerateContent() {
       timerRefs.current.push(t);
     };
 
-    // Start narrative cycling immediately
-    cycleDetails("narrative");
+    // Chain stage transitions — each schedules the next so clearAllTimers
+    // (which only clears detail timers) never cancels future transitions.
+    const advanceToStage = (index: number) => {
+      const stage = stageOrder[index];
+      const duration = STAGE_DURATIONS[stage];
+      if (!duration) return; // "video" waits for real completion
 
-    // Schedule stage transitions
-    for (let i = 0; i < stageOrder.length - 1; i++) {
-      const nextStage = stageOrder[i + 1];
-      elapsed += STAGE_DURATIONS[stageOrder[i]];
-      const capturedElapsed = elapsed;
-      addTimer(() => {
-        clearAllTimers();
+      const t = setTimeout(() => {
+        const nextStage = stageOrder[index + 1];
+        clearAllTimers(); // clear previous stage's detail timers
         setFakeStage(nextStage);
         setFakeDetail(FAKE_DETAILS[nextStage][0]);
         if (nextStage === "video") {
           atVideoStageRef.current = true;
-          // If real job already done, redirect immediately
           if (realDoneRef.current) {
-            clearAllTimers();
             setFakeDetail("Finalizing your documentary...");
             setTimeout(() => {
               setIsComplete(true);
@@ -175,9 +172,15 @@ function GenerateContent() {
           }
         } else {
           cycleDetails(nextStage);
+          advanceToStage(index + 1);
         }
-      }, capturedElapsed);
-    }
+      }, duration);
+      timerRefs.current.push(t);
+    };
+
+    // Kick off
+    cycleDetails("narrative");
+    advanceToStage(0);
 
     return () => clearAllTimers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
