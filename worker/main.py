@@ -64,14 +64,13 @@ async def generate_image(scene: dict, tmpdir: str) -> str:
     headers = {
         "Authorization": f"Bearer {REPLICATE_TOKEN}",
         "Content-Type": "application/json",
-        "Prefer": "wait",
     }
 
     for prompt in prompts_to_try:
         for attempt in range(4):
             try:
-                async with httpx.AsyncClient(timeout=120) as client:
-                    # Submit prediction
+                # Submit prediction — short timeout, just get the ID back
+                async with httpx.AsyncClient(timeout=30) as client:
                     resp = await client.post(
                         "https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions",
                         headers=headers,
@@ -95,29 +94,31 @@ async def generate_image(scene: dict, tmpdir: str) -> str:
                     resp.raise_for_status()
                     prediction = resp.json()
 
-                    # Poll until done (max 90s)
-                    prediction_id = prediction["id"]
-                    for _ in range(30):
+                # Poll with a hard 3-minute cap, 5s intervals
+                prediction_id = prediction["id"]
+                async with httpx.AsyncClient(timeout=15) as poll_client:
+                    for _ in range(36):  # 36 * 5s = 3 min max
                         if prediction.get("status") in ("succeeded", "failed", "canceled"):
                             break
-                        await asyncio.sleep(3)
-                        poll = await client.get(
+                        await asyncio.sleep(5)
+                        poll = await poll_client.get(
                             f"https://api.replicate.com/v1/predictions/{prediction_id}",
                             headers=headers,
                         )
                         prediction = poll.json()
 
-                    if prediction.get("status") != "succeeded":
-                        error = prediction.get("error", "unknown error")
-                        if "NSFW" in str(error):
-                            break
-                        raise RuntimeError(f"Prediction failed: {error}")
+                if prediction.get("status") != "succeeded":
+                    error = prediction.get("error", "unknown error")
+                    if "NSFW" in str(error):
+                        break
+                    raise RuntimeError(f"Prediction failed: {error}")
 
-                    image_url = prediction["output"]
-                    if isinstance(image_url, list):
-                        image_url = image_url[0]
+                image_url = prediction["output"]
+                if isinstance(image_url, list):
+                    image_url = image_url[0]
 
-                    img_resp = await client.get(str(image_url), timeout=60)
+                async with httpx.AsyncClient(timeout=60) as dl_client:
+                    img_resp = await dl_client.get(str(image_url))
                     img_resp.raise_for_status()
 
                 path = f"{tmpdir}/scene_{scene['id']}.png"
