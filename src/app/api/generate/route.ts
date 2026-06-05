@@ -9,8 +9,8 @@ const SYSTEM_PROMPT = `You are a documentary writer specializing in alternate hi
 When given a historical "what if" prompt, you generate structured JSON narratives.
 
 Rules:
+- If FACTUAL CONTEXT is provided, treat it as ground truth — use the exact teams, scores, dates, people, standings, and events it describes. Do not invent or substitute facts that contradict it.
 - Ground the alternate timeline in real historical cause-and-effect
-- Reference real figures, places, and dates where possible
 - Keep it plausible — no magic, no science fiction
 - Structure it like a documentary: setup, turning point, consequences, long-term world impact
 - End with a scene showing what the world looks like today in this alternate timeline
@@ -37,6 +37,37 @@ const NARRATIVE_SCHEMA = `{
   ]
 }`;
 
+async function gatherFactualContext(prompt: string): Promise<string> {
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1024,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      tools: [{ type: "web_search_20260209", name: "web_search" } as any],
+      messages: [{
+        role: "user",
+        content: `Search for the real factual details needed to accurately write about this scenario: "${prompt}"
+
+Find and return as concise bullet points:
+- The exact real-world baseline (actual results, standings, dates, people involved)
+- Key specific facts: scores, league positions, names of real people/teams/places, actual sequences of events
+- Any other concrete details that would need to be accurate in a documentary about this topic
+
+Be specific. Numbers, names, and dates only — no speculation.`,
+      }],
+    });
+
+    const text = message.content
+      .filter((b) => b.type === "text")
+      .map((b) => (b as { type: "text"; text: string }).text)
+      .join("\n")
+      .trim();
+    return text;
+  } catch {
+    return "";
+  }
+}
+
 function isValidHistoricalPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   const historicalKeywords = [
@@ -62,17 +93,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Gather real-world facts first so the narrative is grounded in reality
+    const factualContext = await gatherFactualContext(prompt);
+
+    const userContent = factualContext
+      ? `Generate a 7-scene alternate history documentary narrative for this prompt:\n\n"${prompt}"\n\nFACTUAL CONTEXT (use these real facts as the foundation — do not contradict them):\n${factualContext}\n\nReturn JSON matching this schema:\n${NARRATIVE_SCHEMA}`
+      : `Generate a 7-scene alternate history documentary narrative for this prompt:\n\n"${prompt}"\n\nReturn JSON matching this schema:\n${NARRATIVE_SCHEMA}`;
+
     // Generate narrative with Claude
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `Generate a 7-scene alternate history documentary narrative for this prompt:\n\n"${prompt}"\n\nReturn JSON matching this schema:\n${NARRATIVE_SCHEMA}`,
-        },
-      ],
+      messages: [{ role: "user", content: userContent }],
     });
 
     const rawText = message.content[0].type === "text" ? message.content[0].text : "";
